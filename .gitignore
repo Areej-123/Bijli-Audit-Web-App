@@ -1,0 +1,11 @@
+bijli-audit-backend/venv/
+**/venv/
+**/.venv/
+**/__pycache__/
+*.pyc
+**/temp_*
+node_modules/
+.next/
+.env
+.env*
+*.env
