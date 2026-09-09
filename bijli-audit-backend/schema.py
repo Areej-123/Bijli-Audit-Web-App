@@ -12,6 +12,9 @@ BILL_SCHEMA = {
     "gst": "number",
     "electricity_duty": "number",
     "tv_fee": "number",
+    "subsidies": "number",
+    "net_electricity_charges": "number",
+    "gross_total": "number",
     "total_amount_due": "number",
-    "due_date": "string"
+    "due_date": "string",
 }

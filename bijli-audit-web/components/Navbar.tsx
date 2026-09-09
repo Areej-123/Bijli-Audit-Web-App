@@ -4,25 +4,44 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, History, Calculator, Upload } from "lucide-react";
+import {
+  LayoutDashboard,
+  History,
+  Calculator,
+  Upload,
+  Gauge,
+  Landmark,
+  Sliders,
+} from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
 
   const navLinks = [
+    { name: "Calculate", href: "/calculator", icon: Calculator },
     { name: "Upload", href: "/", icon: Upload },
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "History", href: "/history", icon: History },
-    { name: "Planner", href: "/planner", icon: Calculator },
+    { name: "Planner", href: "/planner", icon: Sliders },
+    { name: "Meter", href: "/meter-check", icon: Gauge },
+    { name: "MEPCO", href: "/mepco", icon: Landmark },
   ];
 
   return (
     <header className="fixed top-4 left-0 right-0 z-50 px-4 max-w-5xl mx-auto print:hidden">
-      <nav className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-full px-6 py-3 shadow-lg shadow-slate-900/5 flex items-center justify-between">
-        
+      <motion.nav
+        initial={{ y: -70, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-full px-4 sm:px-6 py-3 shadow-lg shadow-slate-900/5 flex flex-wrap items-center justify-center sm:justify-between gap-x-3 gap-y-2 max-w-[calc(100vw-2rem)]"
+      >
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <motion.div whileHover={{ rotate: [0, -10, 10, 0] }} transition={{ duration: 0.3 }}>
+        <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+          <motion.div
+            animate={{ rotate: [0, 0, -8, 8, 0] }}
+            transition={{ duration: 4, repeat: Infinity, repeatDelay: 2 }}
+            whileHover={{ scale: 1.15 }}
+          >
             <Image
               src="/bijli_audit_logo.png"
               alt="Bijli Audit"
@@ -36,8 +55,8 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Navigation Links with Hover & Active Animations */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        {/* Navigation Links with Shared-Layout Active Pill */}
+        <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             const Icon = link.icon;
@@ -46,20 +65,22 @@ export default function Navbar() {
               <Link key={link.name} href={link.href} className="relative">
                 <motion.div
                   whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 relative z-10 ${
+                  whileTap={{ scale: 0.93 }}
+                  className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 relative z-10 ${
                     isActive ? "text-[#0F172A]" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  <Icon size={16} className={isActive ? "text-[#F59E0B]" : "text-slate-500"} />
-                  <span>{link.name}</span>
+                  <Icon
+                    size={16}
+                    className={`${isActive ? "text-[#F59E0B]" : "text-slate-500"} transition-transform duration-200 shrink-0`}
+                  />
+                  <span className="whitespace-nowrap">{link.name}</span>
 
-                  {/* Active Indicator Background */}
+                  {/* Animated Shared-Layout Active Pill */}
                   {isActive && (
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.2 }}
+                      layoutId="nav-active-pill"
+                      transition={{ type: "spring", bounce: 0.25, duration: 0.6 }}
                       className="absolute inset-0 bg-slate-100/90 rounded-full -z-10 border border-slate-200/80 shadow-xs"
                     />
                   )}
@@ -68,8 +89,7 @@ export default function Navbar() {
             );
           })}
         </div>
-
-      </nav>
+      </motion.nav>
     </header>
   );
 }

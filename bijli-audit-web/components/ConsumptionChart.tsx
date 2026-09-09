@@ -11,22 +11,24 @@ import {
   ReferenceLine,
 } from "recharts";
 
-const mockData = [
-  { month: "Mar", units: 165 },
-  { month: "Apr", units: 178 },
-  { month: "May", units: 190 },
-  { month: "Jun", units: 210 },
-  { month: "Jul", units: 195 },
-  { month: "Aug", units: 182 },
-];
+export default function ConsumptionChart({
+  data,
+}: {
+  data?: { month: string; units: number }[];
+}) {
+  const chartData =
+    data && data.length > 0 ? data : [{ month: "No data", units: 0 }];
 
-export default function ConsumptionChart() {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 w-full">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h3 className="font-bold text-[#1f3a6e] text-lg">Consumption Trend</h3>
-          <p className="text-xs text-slate-500 font-medium">Monthly usage over the last 6 months</p>
+          <p className="text-xs text-slate-500 font-medium">
+            {data && data.length > 0
+              ? "Monthly usage from your audited bills"
+              : "Upload bills to see your monthly usage trend"}
+          </p>
         </div>
         <span className="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
           Target Limit: 200 Units
@@ -35,7 +37,7 @@ export default function ConsumptionChart() {
 
       <div className="w-full h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={mockData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorUnits" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#1f3a6e" stopOpacity={0.25} />
@@ -54,7 +56,7 @@ export default function ConsumptionChart() {
                 color: "#0f172a",
                 padding: "10px 14px",
               }}
-              formatter={(value: any) => [`${value} Units`, "Usage"]}
+              formatter={(value) => [`${value} Units`, "Usage"]}
             />
             {/* 200 Units Safety Line */}
             <ReferenceLine

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, use } from "react";
+import React, { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -14,9 +14,11 @@ import {
   Check,
   User,
   Hash,
+  Loader2,
 } from "lucide-react";
-import { mockBills } from "@/components/mockBills";
 import jsPDF from "jspdf";
+import { API_BASE } from "@/lib/apiBase";
+import type { BillRecord } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{
@@ -31,30 +33,68 @@ export default function DisputePage({ params }: PageProps) {
   const [copied, setCopied] = useState(false);
   const [consumerName, setConsumerName] = useState("");
   const [consumerAcc, setConsumerAcc] = useState("");
+  const [bill, setBill] = useState<BillRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
-  const billIndex = parseInt(rawId, 10) - 1;
-  const bill =
-    mockBills.find((b) => String(b.id) === String(rawId)) ||
-    (!isNaN(billIndex) && mockBills[billIndex] ? mockBills[billIndex] : mockBills[0]);
+  useEffect(() => {
+    if (!bill) {
+      fetch(`${API_BASE}/bills/${rawId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Bill not found");
+          return res.json();
+        })
+        .then((data: BillRecord) => {
+          setBill(data);
+          try {
+            const structured = data?.structured_json
+              ? (JSON.parse(data.structured_json) as {
+                  reference_number?: string;
+                  consumer_name?: string;
+                })
+              : null;
+            const refNumber =
+              structured?.reference_number || String(data?.reference_number || "");
+            if (refNumber) setConsumerAcc(refNumber);
+            if (structured?.consumer_name) setConsumerName(structured.consumer_name);
+          } catch {
+            const refNumber = String(data?.reference_number || "");
+            if (refNumber) setConsumerAcc(refNumber);
+          }
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Error fetching bill:", err);
+          setNotFound(true);
+          setLoading(false);
+        });
+    }
+  }, [rawId, bill]);
+
+  const b = (bill || {}) as Partial<BillRecord>;
+
+  const month = b.billing_month || "Unknown";
+  const status = b.discrepancy_flag || "Under Review";
+  const units = Number(b.units_consumed || 0);
+  const total = Number(b.total_amount_due || 0);
 
   const applicantName = consumerName.trim() || "Consumer / Applicant";
-  const accountNoText = consumerAcc.trim() ? ` (Account No: ${consumerAcc.trim()})` : "";
 
   const letterText = `ELECTRICITY BILL DISPUTE APPLICATION
-Ref Audit ID: #BA-${bill.id}${consumerAcc.trim() ? `\nAccount No: ${consumerAcc.trim()}` : ""}
+Ref Audit ID: #BA-${b.id}${consumerAcc.trim() ? `\nAccount No: ${consumerAcc.trim()}` : ""}
 Date: ${new Date().toLocaleDateString("en-GB")}
 
 To:
 The Sub-Divisional Officer (SDO), MEPCO
 Sub-Division Office, MEPCO
 
-Subject: Request for Review of Billed Amount for ${bill.month}
+Subject: Request for Review of Billed Amount for ${month}
 
 Respected Sir/Madam,
 
-I am writing to formally request an official review and audit of my electricity bill for the period of ${bill.month}.
+I am writing to formally request an official review and audit of my electricity bill for the period of ${month}.
 
-According to Bijli Audit's automated verification engine, my bill for this cycle has been flagged with: "${bill.status}". The recorded consumption for this period is ${bill.units} kWh, incurring a total billed charge of Rs. ${bill.total.toLocaleString()}.
+According to Bijli Audit's automated verification engine, my bill for this cycle has been flagged with: "${status}". The recorded consumption for this period is ${units} kWh, incurring a total billed charge of Rs. ${total.toLocaleString()}.
 
 I request your office to verify the applied tariff slab, fuel cost adjustment surcharges, and reading calculations against actual meter records. Kindly issue a revised bill if an overcharge or tariff mismatch is confirmed.
 
@@ -90,7 +130,7 @@ ${applicantName}`;
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Date: ${new Date().toLocaleDateString("en-GB")}`, 145, 38);
-    doc.text(`Ref Audit ID: #BA-${bill.id}`, 20, 38);
+    doc.text(`Ref Audit ID: #BA-${b.id}`, 20, 38);
     if (consumerAcc.trim()) {
       doc.text(`Account / Ref No: ${consumerAcc.trim()}`, 20, 44);
     }
@@ -107,11 +147,11 @@ ${applicantName}`;
 
     // Subject
     doc.setFont("helvetica", "bold");
-    doc.text(`Subject: Request for Review of Billed Amount for ${bill.month}`, 20, startY + 25);
+    doc.text(`Subject: Request for Review of Billed Amount for ${month}`, 20, startY + 25);
 
     // Formal Body Text
     doc.setFont("helvetica", "normal");
-    const bodyText = `Respected Sir/Madam,\n\nI am writing to formally request an official review and audit of my electricity bill for the period of ${bill.month}.\n\nAccording to Bijli Audit's automated verification engine, my bill for this cycle has been flagged with: "${bill.status}". The recorded consumption for this period is ${bill.units} kWh, incurring a total billed charge of Rs. ${bill.total}.\n\nI request your office to verify the applied tariff slab, fuel cost adjustment surcharges, and reading calculations against actual meter records. Kindly issue a revised bill if an overcharge or tariff mismatch is confirmed.\n\nThank you for your prompt action and assistance.`;
+    const bodyText = `Respected Sir/Madam,\n\nI am writing to formally request an official review and audit of my electricity bill for the period of ${month}.\n\nAccording to Bijli Audit's automated verification engine, my bill for this cycle has been flagged with: "${status}". The recorded consumption for this period is ${units} kWh, incurring a total billed charge of Rs. ${total.toLocaleString()}.\n\nI request your office to verify the applied tariff slab, fuel cost adjustment surcharges, and reading calculations against actual meter records. Kindly issue a revised bill if an overcharge or tariff mismatch is confirmed.\n\nThank you for your prompt action and assistance.`;
 
     const splitText = doc.splitTextToSize(bodyText, 170);
     doc.text(splitText, 20, startY + 37);
@@ -122,8 +162,36 @@ ${applicantName}`;
     doc.setFont("helvetica", "bold");
     doc.text(applicantName, 20, startY + 142);
 
-    doc.save(`dispute-letter-${bill.id}.pdf`);
+    doc.save(`dispute-letter-${b.id}.pdf`);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-amber-500" size={36} />
+      </div>
+    );
+  }
+
+  if (notFound || !bill) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+        <h2 className="text-2xl font-black text-slate-900 mb-2">
+          Audit Record Not Found
+        </h2>
+        <p className="text-sm font-medium text-slate-500 mb-6">
+          The requested bill audit ID #{rawId} could not be retrieved for dispute generation.
+        </p>
+        <Link
+          href="/history"
+          className="inline-flex items-center space-x-2 text-xs font-bold text-white bg-slate-900 px-4 py-2.5 rounded-xl shadow-xs"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Return to History</span>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50/50 pb-20 pt-28 px-4 sm:px-6">
@@ -136,7 +204,7 @@ ${applicantName}`;
           transition={{ duration: 0.3 }}
         >
           <Link
-            href={`/history/${bill.id}`}
+            href={`/history/${b.id}`}
             className="inline-flex items-center space-x-2 text-sm font-bold text-slate-600 hover:text-amber-500 bg-white border border-slate-200/80 px-4 py-2 rounded-full shadow-xs hover:shadow-md transition-all group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform text-amber-500" />
@@ -168,13 +236,13 @@ ${applicantName}`;
 
             <div className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/80 w-fit">
               <AlertTriangle className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
-              {bill.status}
+              {status}
             </div>
           </div>
 
           {/* Subtitle / Details */}
           <p className="text-slate-500 text-sm mt-4">
-            Generated specifically for your <strong className="text-slate-800">{bill.month}</strong> bill (Total: <strong className="text-slate-800">Rs. {bill.total.toLocaleString()}</strong>). Fill in your details below to customize the letter before exporting.
+            Generated specifically for your <strong className="text-slate-800">{month}</strong> bill (Total: <strong className="text-slate-800">Rs. {total.toLocaleString()}</strong>). Fill in your details below to customize the letter before exporting.
           </p>
 
           {/* Dynamic Inputs Form */}
@@ -217,7 +285,7 @@ ${applicantName}`;
               <span className="flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-amber-500" /> Official Application Format
               </span>
-              <span>Ref: #BA-{bill.id}{consumerAcc.trim() ? ` | Acc: ${consumerAcc.trim()}` : ""}</span>
+              <span>Ref: #BA-{b.id}{consumerAcc.trim() ? ` | Acc: ${consumerAcc.trim()}` : ""}</span>
             </div>
 
             <h3 className="font-sans font-extrabold text-base text-slate-900 pt-1 tracking-tight">
@@ -225,15 +293,15 @@ ${applicantName}`;
             </h3>
 
             <p><strong>To:</strong> The Sub-Divisional Officer (SDO), MEPCO</p>
-            <p><strong>Subject:</strong> Request for Review of Billed Amount for {bill.month}</p>
+            <p><strong>Subject:</strong> Request for Review of Billed Amount for {month}</p>
 
             <div className="font-sans text-slate-700 bg-white p-4 rounded-xl border border-slate-200/60 text-xs leading-relaxed space-y-2">
               <p>Respected Sir/Madam,</p>
               <p>
-                I am writing to formally request an official review and audit of my electricity bill for the period of <strong>{bill.month}</strong>.
+                I am writing to formally request an official review and audit of my electricity bill for the period of <strong>{month}</strong>.
               </p>
               <p>
-                According to Bijli Audit's automated verification engine, my bill for this cycle has been flagged with: <strong>"{bill.status}"</strong>. The recorded consumption for this period is <strong>{bill.units} kWh</strong>, incurring a total billed charge of <strong>Rs. {bill.total.toLocaleString()}</strong>.
+                According to Bijli Audit&apos;s automated verification engine, my bill for this cycle has been flagged with: <strong>&quot;{status}&quot;</strong>. The recorded consumption for this period is <strong>{units} kWh</strong>, incurring a total billed charge of <strong>Rs. {total.toLocaleString()}</strong>.
               </p>
               <p>
                 I request your office to verify the applied tariff slab, fuel cost adjustment surcharges, and reading calculations against actual meter records.

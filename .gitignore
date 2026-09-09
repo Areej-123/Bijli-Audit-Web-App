@@ -9,3 +9,10 @@ node_modules/
 .env
 .env*
 *.env
+
+# backend runtime data (PII — never push)
+bijli-audit-backend/*.db
+bijli-audit-backend/*.db-*
+bijli-audit-backend/media/
+bijli-audit-backend/sample_bills/
+bijli-audit-backend/uvicorn_*.log
