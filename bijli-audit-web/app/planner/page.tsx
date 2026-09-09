@@ -15,7 +15,6 @@ import {
   CalendarClock,
   Download,
   Loader2,
-  IndianRupee,
 } from "lucide-react";
 import AnimatedNumber from "@/components/AnimatedNumber";
 import { API_BASE } from "@/lib/apiBase";
@@ -448,9 +447,6 @@ export default function PlannerPage() {
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
-                <IndianRupee size={17} className="text-amber-600" />
-              </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">NEPRA Tariff Breakdown</h3>
                 <p className="text-[11px] text-slate-400 font-medium">

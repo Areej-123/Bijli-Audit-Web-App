@@ -671,7 +671,7 @@ export default function CalculatorPage() {
 
           {/* ————————————————— Results ————————————————— */}
           <div className="space-y-5">
-            <section className="calc-card sticky lg:top-24 space-y-5 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 shadow-xl shadow-slate-900/20 p-6 overflow-hidden relative">
+            <section className="calc-card space-y-5 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 shadow-xl shadow-slate-900/20 p-6 overflow-hidden relative">
               <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
               <div className="absolute -bottom-20 -left-16 w-56 h-56 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
 

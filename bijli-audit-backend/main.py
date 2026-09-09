@@ -757,14 +757,17 @@ USER QUESTION:
         chat_client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
+            timeout=90,
         )
 
         response = chat_client.chat.completions.create(
-            model="openrouter/free",
+            model="openai/gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=600,
         )
-        reply = response.choices[0].message.content
+        reply = (response.choices[0].message.content or "").strip()
+        if not reply:
+            reply = "I couldn't think of a reply just now. Please try again in a few seconds."
         try:
             with Session(engine) as session:
                 session.add(ChatMessage(session_id=session_id, role="assistant", content=reply))

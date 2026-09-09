@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { X, Send, Loader2 } from "lucide-react";
 import { API_BASE } from "@/lib/apiBase";
 
 interface MascotProps {
@@ -19,6 +19,7 @@ export default function Mascot({ billId }: MascotProps) {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hovering, setHovering] = useState(false);
   const hasGreetedRef = useRef(false);
 
   const readLatestBill = () => {
@@ -95,6 +96,8 @@ export default function Mascot({ billId }: MascotProps) {
     }
 
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30000);
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,8 +105,11 @@ export default function Mascot({ billId }: MascotProps) {
           message: userMessage,
           bill_id: effectiveBillId ?? null,
           session_id: sessionId,
+          context: readLatestBill(),
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
 
       if (!res.ok) {
         throw new Error("Failed to get response");
@@ -120,7 +126,10 @@ export default function Mascot({ billId }: MascotProps) {
         ...prev,
         {
           role: "assistant",
-          text: "Sorry, I had trouble reaching the backend server right now.",
+          text:
+            (error as Error).name === "AbortError"
+              ? "Bijli is taking too long to reply. Please try again in a moment."
+              : "Sorry, I had trouble reaching the backend server right now.",
         },
       ]);
     } finally {
@@ -130,33 +139,22 @@ export default function Mascot({ billId }: MascotProps) {
 
   return (
     <div className="fixed bottom-8 right-6 sm:bottom-10 sm:right-8 z-[60] flex flex-col items-end print:hidden">
-      {/* Speech Teaser Bubble */}
+      {/* Speech Teaser Bubble (shows only while hovering the pokemon) */}
       <AnimatePresence>
-        {!open && (
+        {!open && hovering && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 10 }}
-            transition={{ duration: 0.3 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10, transition: { duration: 0.2 } }}
+            transition={{ duration: 0.25 }}
             onClick={openChat}
-            className="mb-3 flex items-center gap-3 bg-white border border-slate-200/90 px-4 py-2.5 rounded-2xl shadow-xl hover:shadow-2xl cursor-pointer hover:scale-105 transition-all max-w-xs"
+            className="mb-3 cursor-pointer relative bg-white border border-slate-200/90 px-3.5 py-2.5 rounded-2xl shadow-lg shadow-slate-900/10 hover:shadow-xl hover:scale-105 transition-all max-w-[210px]"
           >
-            <div className="relative w-10 h-10 shrink-0 flex items-center justify-center">
-              <img
-                src="/bijli_buddy.png"
-                alt="Bijli Buddy"
-                className="w-10 h-10 object-contain"
-              />
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-[#1f3a6e] flex items-center gap-1">
-                ⚡ Need help with your bill?
-              </span>
-              <p className="text-[11px] text-slate-600 font-medium leading-tight">
-                Click me to ask questions about taxes, tariffs, or overcharges!
-              </p>
-            </div>
+            <p className="text-[11px] font-bold text-[#1f3a6e] leading-snug">
+              Hi! I&apos;m Bijli ⚡ — ask me anything about your electricity bill
+              or how much you should really be paying.
+            </p>
+            <span className="absolute -bottom-1 right-8 w-2 h-2 bg-white rotate-45 border-r border-b border-slate-200/90" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -177,7 +175,7 @@ export default function Mascot({ billId }: MascotProps) {
               <div className="flex flex-col">
                 <span className="font-semibold flex items-center gap-2 text-sm">
                   <img
-                    src="/bijli_buddy.png"
+                    src="/bijli_wave.gif"
                     alt="Bijli"
                     className="w-6 h-6 object-contain inline-block"
                   />
@@ -243,17 +241,54 @@ export default function Mascot({ billId }: MascotProps) {
         )}
       </AnimatePresence>
 
-      {/* Floating Action Button */}
-      <motion.button
-        onClick={openChat}
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        className="w-14 h-14 rounded-full bg-[#1f3a6e] text-[#f59e0b] shadow-xl flex items-center justify-center border-2 border-white cursor-pointer"
+      {/* Floating Action Button — animated pikachu */}
+      <motion.div
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        className="relative flex items-center justify-center"
       >
-        {open ? <X size={24} /> : <MessageCircle size={24} />}
-      </motion.button>
+        <AnimatePresence>
+          {!open && (
+            <motion.span
+              initial={{ opacity: 0.7, scale: 0.9 }}
+              animate={{ opacity: [0.7, 0.25, 0.7], scale: [1, 1.18, 1] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="absolute inset-0 rounded-full bg-amber-400/40 blur-[2px]"
+            />
+          )}
+        </AnimatePresence>
+        <motion.button
+          onClick={openChat}
+          animate={{ y: [0, -7, 0] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          whileHover={{ scale: 1.12, rotate: -4 }}
+          whileTap={{ scale: 0.92, rotate: 0 }}
+          className="relative w-14 h-14 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 shadow-xl shadow-amber-500/40 flex items-center justify-center border-2 border-white cursor-pointer overflow-hidden"
+        >
+          {open ? (
+            <X size={24} className="text-slate-900" />
+          ) : (
+            <img
+              src="/bijli_wave.gif"
+              alt="Bijli, your bill buddy"
+              className="w-12 h-12 object-contain drop-shadow"
+            />
+          )}
+        </motion.button>
+
+        {/* Always-visible name badge */}
+        {!open && (
+          <motion.span
+            initial={{ opacity: 0, x: 6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4, duration: 0.3 }}
+            className="absolute right-full mr-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-white bg-[#1f3a6e] pl-3 pr-2.5 py-1.5 rounded-full shadow-lg border border-white/10 whitespace-nowrap"
+          >
+            Ask Bijli ⚡
+          </motion.span>
+        )}
+      </motion.div>
     </div>
   );
 }
