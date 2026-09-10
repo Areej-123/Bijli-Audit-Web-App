@@ -38,7 +38,7 @@ jobs:
         with:
           name: python-app
           path: |
-            bijli-audit-backend/
+            bijli-audit-backend/*
             !bijli-audit-backend/antenv/
 
   deploy:
