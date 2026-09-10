@@ -25,21 +25,15 @@ jobs:
           python -m venv antenv
           source antenv/bin/activate
           pip install --upgrade pip
-          if [ -f "./bijli-audit-backend/requirements.txt" ]; then
-            pip install -r ./bijli-audit-backend/requirements.txt
-          elif [ -f "./requirements.txt" ]; then
-            pip install -r ./requirements.txt
-          else
-            echo "❌ requirements.txt not found!" && exit 1
-          fi
+          pip install -r requirements.txt
+        working-directory: ./bijli-audit-backend
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
           path: |
-            bijli-audit-backend/*
-            !bijli-audit-backend/antenv/
+            bijli-audit-backend/
 
   deploy:
     runs-on: ubuntu-latest
