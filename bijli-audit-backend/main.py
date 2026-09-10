@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from PIL import Image, ImageOps
+from fastapi.concurrency import run_in_threadpool
 
 load_dotenv()
 
@@ -771,7 +772,7 @@ async def chat(payload: dict):
         else (context if context else "No bill has been uploaded/selected yet.")
     )
 
-    # Persist the conversation so follow-up questions stay context-aware.
+    # Persist user message
     try:
         with Session(engine) as session:
             session.add(
@@ -783,8 +784,9 @@ async def chat(payload: dict):
 
     prompt = f"""You are Bijli, a friendly assistant explaining Pakistani MEPCO electricity bills in plain language.
 Use ONLY the bill data provided below to answer — never invent numbers, rates, or totals.
+Answer accurately and directly in 2-3 short sentences.
 If the bill data is empty, tell the user you can't see an uploaded bill yet and invite them to upload one.
-Do NOT use Markdown tables, raw pipes (|), or heavy markup. Keep formatting to clean short paragraphs and an occasional bullet list for readability in a small chat widget.
+Do NOT use Markdown tables or heavy formatting.
 
 BILL DATA:
 {context_block}
@@ -803,17 +805,23 @@ USER QUESTION:
         chat_client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
-            timeout=90,
+            timeout=15,  # 15s timeout keeps requests snappy
         )
 
-        response = chat_client.chat.completions.create(
+        # Run non-blocking in threadpool for instant processing
+        response = await run_in_threadpool(
+            chat_client.chat.completions.create,
             model="google/gemini-2.0-flash-lite-001",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=600,
+            max_tokens=250,
+            temperature=0.1,  # Low temperature ensures direct factual accuracy
         )
+
         reply = (response.choices[0].message.content or "").strip()
         if not reply:
             reply = "I couldn't think of a reply just now. Please try again in a few seconds."
+
+        # Persist assistant reply
         try:
             with Session(engine) as session:
                 session.add(
@@ -822,6 +830,7 @@ USER QUESTION:
                 session.commit()
         except Exception as db_err:
             print(f"[DB WARN] chat history write failed: {db_err}")
+
         return {"reply": reply}
 
     except Exception as e:
