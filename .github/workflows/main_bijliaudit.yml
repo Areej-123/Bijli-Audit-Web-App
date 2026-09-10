@@ -21,24 +21,21 @@ jobs:
           python-version: '3.11'
 
       - name: Create virtual environment and install dependencies
+        working-directory: ./bijli-audit-backend
         run: |
           python -m venv antenv
           source antenv/bin/activate
           pip install --upgrade pip
-          if [ -f "./bijli-audit-backend/requirements.txt" ]; then
-            pip install -r ./bijli-audit-backend/requirements.txt
-          elif [ -f "./requirements.txt" ]; then
-            pip install -r ./requirements.txt
-          else
-            echo "❌ requirements.txt not found!" && exit 1
+          pip install uvicorn gunicorn fastapi
+          if [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
           fi
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: |
-            bijli-audit-backend/
+          path: bijli-audit-backend/
 
   deploy:
     runs-on: ubuntu-latest
