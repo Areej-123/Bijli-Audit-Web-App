@@ -17,7 +17,7 @@ openai==3.7.0
 requests==2.34.2
 easyocr==1.7.2
 opencv-python-headless==5.0.0.93
-numpy==2.5.2
+numpy==1.26.4
 pillow==12.3.0
 pymupdf==1.28.2
 pypdfium2==5.13.0
