@@ -155,7 +155,10 @@ Return ONLY valid raw JSON, no markdown fences, matching EXACTLY this shape:
 RAW OCR TEXT:
 {combined_text}"""
 
-    models_to_try = ["openai/gpt-4o-mini", "deepseek/deepseek-chat"]
+    models_to_try = [
+        "google/gemini-2.0-flash-lite-001",
+        "meta-llama/llama-3.1-8b-instruct:free",
+    ]
 
     last_error = None
     for model_name in models_to_try:
