@@ -172,7 +172,9 @@ def _pdf_to_image(contents: bytes, max_pages: int = 2) -> np.ndarray:
                         continue
             if candidates:
                 # Prefer the largest embedded image (most pixels = more detail).
-                info = max(candidates, key=lambda i: i.get("width", 0) * i.get("height", 0))
+                info = max(
+                    candidates, key=lambda i: i.get("width", 0) * i.get("height", 0)
+                )
                 data = info["image"]
                 decoded = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
                 if decoded is not None and decoded.size > 0:
@@ -181,7 +183,9 @@ def _pdf_to_image(contents: bytes, max_pages: int = 2) -> np.ndarray:
                 pil_img = Image.open(io.BytesIO(data)).convert("RGB")
                 return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
         except Exception as e:
-            print(f"[PDF WARN] pymupdf image extraction failed, falling back to render: {e}")
+            print(
+                f"[PDF WARN] pymupdf image extraction failed, falling back to render: {e}"
+            )
 
     try:
         pdf = pdfium.PdfDocument(contents)
@@ -278,7 +282,9 @@ def preprocess_and_ocr(temp_path: str, img: np.ndarray):
     return best_lines, check_mepco_structure(best_lines), best_angle
 
 
-def _run_extraction_job(job_id: str, raw_bytes: bytes, filename: str, is_pdf: bool = False):
+def _run_extraction_job(
+    job_id: str, raw_bytes: bytes, filename: str, is_pdf: bool = False
+):
     temp_path = f"temp_{job_id}.webp"
     job = JOBS[job_id]
     try:
@@ -321,7 +327,11 @@ def _run_extraction_job(job_id: str, raw_bytes: bytes, filename: str, is_pdf: bo
         tariff = load_tariff()
         verification = verify_bill(structured_data, tariff)
 
-        merged = {**structured_data, **verification, "orientation_corrected": used_angle != 0}
+        merged = {
+            **structured_data,
+            **verification,
+            "orientation_corrected": used_angle != 0,
+        }
 
         with Session(engine) as session:
             record = BillRecord(
@@ -441,7 +451,13 @@ async def extract_bill_async(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Empty file uploaded.")
 
     job_id = uuid.uuid4().hex
-    JOBS[job_id] = {"status": "queued", "stage": "Queueing...", "progress": 5, "result": None, "error": None}
+    JOBS[job_id] = {
+        "status": "queued",
+        "stage": "Queueing...",
+        "progress": 5,
+        "result": None,
+        "error": None,
+    }
 
     thread = threading.Thread(
         target=_run_extraction_job,
@@ -468,9 +484,20 @@ def extract_status(job_id: str):
         "Verifying tariff against NEPRA rules...": 90,
     }
     if job["status"] == "done":
-        return {"job_id": job_id, "status": "done", "progress": 100, "stage": "Complete"}
+        return {
+            "job_id": job_id,
+            "status": "done",
+            "progress": 100,
+            "stage": "Complete",
+        }
     if job["status"] == "error":
-        return {"job_id": job_id, "status": "error", "progress": 100, "stage": "Failed", "error": job.get("error")}
+        return {
+            "job_id": job_id,
+            "status": "error",
+            "progress": 100,
+            "stage": "Failed",
+            "error": job.get("error"),
+        }
 
     progress = stage_progress.get(job.get("stage", ""), 20)
     return {
@@ -487,7 +514,9 @@ def extract_result(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
     if job["status"] == "error":
-        raise HTTPException(status_code=422, detail=job.get("error", "Extraction failed."))
+        raise HTTPException(
+            status_code=422, detail=job.get("error", "Extraction failed.")
+        )
     if job["status"] != "done":
         raise HTTPException(status_code=202, detail="Job still running.")
     return job["result"]
@@ -573,9 +602,7 @@ def download_backup():
     return StreamingResponse(
         buffer,
         media_type="application/zip",
-        headers={
-            "Content-Disposition": "attachment; filename=bijli-audit-backup.zip"
-        },
+        headers={"Content-Disposition": "attachment; filename=bijli-audit-backup.zip"},
     )
 
 
@@ -588,7 +615,12 @@ def chat_history(session_id: str = "default"):
             .order_by(ChatMessage.id)
         ).all()
         return [
-            {"id": c.id, "role": c.role, "content": c.content, "created_at": str(c.created_at)}
+            {
+                "id": c.id,
+                "role": c.role,
+                "content": c.content,
+                "created_at": str(c.created_at),
+            }
             for c in rows
         ]
 
@@ -602,7 +634,7 @@ def _extract_stated_reading(raw_ocr_text: str | None) -> str | None:
     for i, line in enumerate(lines):
         lowered = line.lower()
         if any(k in lowered for k in reading_keywords):
-            window = lines[max(0, i - 1): i + 4]
+            window = lines[max(0, i - 1) : i + 4]
             for candidate in window:
                 nums = re.findall(r"\b\d{3,}\b", candidate)
                 if nums:
@@ -644,7 +676,9 @@ async def meter_check(file: UploadFile = File(...), bill_id: int | None = None):
     ref_number = None
     try:
         ref_number = str(
-            (json.loads(record.structured_json or "{}") if record else {}).get("reference_number", "")
+            (json.loads(record.structured_json or "{}") if record else {}).get(
+                "reference_number", ""
+            )
         )
     except Exception:
         ref_number = None
@@ -666,9 +700,15 @@ async def meter_check(file: UploadFile = File(...), bill_id: int | None = None):
         if bill_id is not None:
             record = session.get(BillRecord, bill_id)
         else:
-            record = session.exec(select(BillRecord).order_by(BillRecord.id.desc())).first()
+            record = session.exec(
+                select(BillRecord).order_by(BillRecord.id.desc())
+            ).first()
 
-    stated = _extract_stated_reading(record.raw_ocr_text if record else None) if record else None
+    stated = (
+        _extract_stated_reading(record.raw_ocr_text if record else None)
+        if record
+        else None
+    )
 
     if reading is None:
         flag = "Inconclusive"
@@ -684,7 +724,9 @@ async def meter_check(file: UploadFile = File(...), bill_id: int | None = None):
         explanation = f"Meter shows {reading}, but the bill records {stated}. This is worth disputing."
     else:
         flag = "Match"
-        explanation = f"Meter shows {reading}, matching the bill's stated reading of {stated}."
+        explanation = (
+            f"Meter shows {reading}, matching the bill's stated reading of {stated}."
+        )
 
     return {
         "meter_reading": reading,
@@ -724,15 +766,17 @@ async def chat(payload: dict):
                 context = latest.structured_json
 
     context_block = (
-    json.dumps(context, indent=2)
-    if isinstance(context, dict)
-    else (context if context else "No bill has been uploaded/selected yet.")
-)
+        json.dumps(context, indent=2)
+        if isinstance(context, dict)
+        else (context if context else "No bill has been uploaded/selected yet.")
+    )
 
     # Persist the conversation so follow-up questions stay context-aware.
     try:
         with Session(engine) as session:
-            session.add(ChatMessage(session_id=session_id, role="user", content=user_message))
+            session.add(
+                ChatMessage(session_id=session_id, role="user", content=user_message)
+            )
             session.commit()
     except Exception as db_err:
         print(f"[DB WARN] chat history write failed: {db_err}")
@@ -749,10 +793,12 @@ USER QUESTION:
 {user_message}"""
 
     try:
-        api_key = os.getenv("OPENROUTER_API_KEY")
+        api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
             print("❌ OPENROUTER_API_KEY is missing or empty in .env!")
-            return {"reply": "API key configuration missing. Please check backend .env file."}
+            return {
+                "reply": "API key configuration missing. Please check backend .env file."
+            }
 
         chat_client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
@@ -770,7 +816,9 @@ USER QUESTION:
             reply = "I couldn't think of a reply just now. Please try again in a few seconds."
         try:
             with Session(engine) as session:
-                session.add(ChatMessage(session_id=session_id, role="assistant", content=reply))
+                session.add(
+                    ChatMessage(session_id=session_id, role="assistant", content=reply)
+                )
                 session.commit()
         except Exception as db_err:
             print(f"[DB WARN] chat history write failed: {db_err}")

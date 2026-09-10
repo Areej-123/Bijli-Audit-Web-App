@@ -22,7 +22,20 @@ def get_client():
     )
 
 
-MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+MONTHS = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+]
 
 MONTH_TYPO_MAP = {
     "JIV": "JUL",
@@ -163,9 +176,13 @@ RAW OCR TEXT:
             response_text = response.choices[0].message.content.strip()
 
             if "```" in response_text:
-                response_text = response_text.split("```json")[-1].split("```")[0].strip()
+                response_text = (
+                    response_text.split("```json")[-1].split("```")[0].strip()
+                )
                 if response_text.startswith("```"):
-                    response_text = response_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+                    response_text = (
+                        response_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+                    )
 
             data = json.loads(response_text)
 
@@ -230,7 +247,9 @@ def _postprocess(data: dict, combined_text: str) -> dict:
     units = _to_float(data.get("units_consumed"))
 
     if units == 0:
-        unit_match = re.search(r"(?:UNITS|KWH|CONSUMED)[\s:]*(\d{1,4})\b", combined_text, re.IGNORECASE)
+        unit_match = re.search(
+            r"(?:UNITS|KWH|CONSUMED)[\s:]*(\d{1,4})\b", combined_text, re.IGNORECASE
+        )
         if unit_match:
             units = float(unit_match.group(1))
             print(f"[REGEX FIX] Extracted units directly: {units}")
@@ -255,7 +274,12 @@ def _postprocess(data: dict, combined_text: str) -> dict:
     # --- Meter reading round-trip check ---
     present = _to_float(data.get("present_reading"))
     previous = _to_float(data.get("previous_reading"))
-    if present and previous and data["units_consumed"] > 0 and abs((present - previous) - data["units_consumed"]) > 5:
+    if (
+        present
+        and previous
+        and data["units_consumed"] > 0
+        and abs((present - previous) - data["units_consumed"]) > 5
+    ):
         data["units_consumed"] = int(abs(present - previous))
     elif present and previous and data["units_consumed"] == 0:
         diff = int(abs(present - previous))
@@ -329,7 +353,12 @@ def _postprocess(data: dict, combined_text: str) -> dict:
 
     if payable_anchor > 0:
         llm_total = payable_anchor
-    elif llm_total > 0 and gross_total > 0 and llm_total >= gross_total and subsidies <= 0:
+    elif (
+        llm_total > 0
+        and gross_total > 0
+        and llm_total >= gross_total
+        and subsidies <= 0
+    ):
         # No subsidy info but the total still exceeds gross charges — suspect.
         if net_electricity > 0:
             llm_total = net_electricity
@@ -338,7 +367,9 @@ def _postprocess(data: dict, combined_text: str) -> dict:
 
     # --- Protected status / applied category ---
     prot_raw = str(data.get("protected_status", "") or "").lower()
-    if "protected" in prot_raw or (data["units_consumed"] and data["units_consumed"] <= 200):
+    if "protected" in prot_raw or (
+        data["units_consumed"] and data["units_consumed"] <= 200
+    ):
         applied = "Protected"
     else:
         applied = "Unprotected"
