@@ -97,7 +97,7 @@ export default function Mascot({ billId }: MascotProps) {
 
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 30000);
+      const timer = setTimeout(() => controller.abort(), 60000);
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,6 +110,7 @@ export default function Mascot({ billId }: MascotProps) {
         signal: controller.signal,
       });
       clearTimeout(timer);
+      
 
       if (!res.ok) {
         throw new Error("Failed to get response");
