@@ -808,31 +808,37 @@ USER QUESTION:
             timeout=15,  # 15s timeout keeps requests snappy
         )
 
-        # Run non-blocking in threadpool for instant processing
-        response = await run_in_threadpool(
-            chat_client.chat.completions.create,
-            model="google/gemini-2.0-flash-lite-001",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=250,
-            temperature=0.1,  # Low temperature ensures direct factual accuracy
-        )
+        models_to_try = [
+        "google/gemini-2.0-flash-001",
+        "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        }
 
-        reply = (response.choices[0].message.content or "").strip()
-        if not reply:
-            reply = "I couldn't think of a reply just now. Please try again in a few seconds."
-
-        # Persist assistant reply
+       reply = None
+    for model_name in models_to_try:
         try:
-            with Session(engine) as session:
-                session.add(
-                    ChatMessage(session_id=session_id, role="assistant", content=reply)
-                )
-                session.commit()
-        except Exception as db_err:
-            print(f"[DB WARN] chat history write failed: {db_err}")
+            response = await run_in_threadpool(
+                chat_client.chat.completions.create,
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=250,
+                temperature=0.1,
+            )
+            reply = (response.choices[0].message.content or "").strip()
+            if reply:
+                break
+        except Exception as model_err:
+            print(f"[WARN] Failed model {model_name}: {model_err}")
+            continue
 
-        return {"reply": reply}
+    if not reply:
+        reply = "I couldn't process your request right now. Please try again in a few seconds."
 
-    except Exception as e:
-        print("\n❌ OPENROUTER API ERROR:", str(e), "\n")
-        return {"reply": f"OpenRouter Error: {str(e)}"}
+    try:
+        with Session(engine) as session:
+            session.add(ChatMessage(session_id=session_id, role="assistant", content=reply))
+            session.commit()
+    except Exception as db_err:
+        print(f"[DB WARN] chat history write failed: {db_err}")
+
+    return {"reply": reply}
